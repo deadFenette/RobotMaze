@@ -1,6 +1,6 @@
 ﻿using System.Windows;
-using System.Windows.Input;
 using RobotMaze.ViewModels;
+using RobotMaze.Views;
 
 namespace RobotMaze
 {
@@ -15,9 +15,21 @@ namespace RobotMaze
             DataContext = viewModel;
         }
 
-        private void MazeCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void MazeCanvas_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             viewModel.HandleMouseLeftButtonDown(e);
+        }
+
+        private void MazeCanvas_MouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            if (e.Delta > 0)
+            {
+                viewModel.ZoomIn();
+            }
+            else
+            {
+                viewModel.ZoomOut();
+            }
         }
 
         private void StartButton_Click(object sender, RoutedEventArgs e)
@@ -48,6 +60,26 @@ namespace RobotMaze
         private void CreateWallsButton_Click(object sender, RoutedEventArgs e)
         {
             viewModel.CreateWallsButtonClick();
+        }
+
+        private void GenerateMazeButton_Click(object sender, RoutedEventArgs e)
+        {
+            int width = int.Parse(MazeWidthTextBox.Text);
+            int height = int.Parse(MazeHeightTextBox.Text);
+            Console.WriteLine($"Button clicked with width: {width}, height: {height}");
+            viewModel.GenerateMaze(width, height);
+        }
+
+
+
+        private void ZoomInButton_Click(object sender, RoutedEventArgs e)
+        {
+            viewModel.ZoomIn();
+        }
+
+        private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
+        {
+            viewModel.ZoomOut();
         }
     }
 }

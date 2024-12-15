@@ -11,18 +11,20 @@ using RobotMaze.Models;
 using RobotMaze.RobotLogic;
 using RobotMaze.Utils.Svg;
 using RobotMaze.Views;
+using RobotMaze.MazeGeneration;
+using RobotMaze.Commands;
+using RobotMaze.Metrics;
 
 namespace RobotMaze.ViewModels
 {
     public class MazeViewModel : INotifyPropertyChanged
     {
-        private readonly Maze maze;
         private readonly Canvas mazeCanvas;
         private readonly int cellSize = 50;
         private Canvas? robot = null;
-        private readonly List<UIElement> mazeElements = [];
+        private readonly List<UIElement> mazeElements = new List<UIElement>();
         private readonly DispatcherTimer timer;
-        private List<(int, int)> path = [];
+        private List<(int, int)> path = new List<(int, int)>();
         private int currentStep;
         private bool isSettingStart = false;
         private bool isSettingGoal = false;
@@ -31,17 +33,20 @@ namespace RobotMaze.ViewModels
         private double currentSpeed = 1.0;
         private double currentEnergy = 100.0; // Новый параметр для уровня энергии
         private int[,] dangerField; // Новый параметр для уровня опасности
+        private int[,] safetyField; // Новый параметр для уровня безопасности
+        private Queue<(int, int)> memory = new Queue<(int, int)>(); // Память для избегания колебаний
+        private Maze maze;
+        private double scale = 1.0;
+        private RobotMetrics robotMetrics = new RobotMetrics();
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public MazeViewModel(MazeCanvas mazeCanvas)
         {
-            // Используем свойство MazeCanvasElementProperty из MazeCanvas
             this.mazeCanvas = mazeCanvas.MazeCanvasElementProperty;
-            string name = "Константиниол";
-            string surname = "КривнюкороссиПутяааааааааа";
-            maze = new Maze(name.Length, surname.Length);
+            maze = new Maze(10, 10); // Инициализация лабиринта с размерами по умолчанию
             dangerField = new int[maze.M, maze.N]; // Инициализация уровня опасности
+            safetyField = new int[maze.M, maze.N]; // Инициализация уровня безопасности
 
             DrawMaze();
             DrawStartAndGoal();
@@ -76,7 +81,7 @@ namespace RobotMaze.ViewModels
                     }
                     else
                     {
-                        Rectangle rect = new()
+                        Rectangle rect = new Rectangle
                         {
                             Width = cellSize,
                             Height = cellSize,
@@ -119,6 +124,7 @@ namespace RobotMaze.ViewModels
             mazeCanvas.Children.Add(goalElement);
             mazeElements.Add(goalElement);
         }
+
         private List<(int, int)> MoveRobot((int, int) start, (int, int) goal)
         {
             int x = start.Item1;
@@ -155,17 +161,15 @@ namespace RobotMaze.ViewModels
             return path;
         }
 
-
-
         private (int, int) ChooseNextMove(int x, int y, (int, int) goal, HashSet<(int, int)> visited)
         {
             List<(int, int)> possibleMoves = new List<(int, int)>
-    {
-        (x, y + 1),
-        (x + 1, y),
-        (x, y - 1),
-        (x - 1, y)
-    };
+            {
+                (x, y + 1),
+                (x + 1, y),
+                (x, y - 1),
+                (x - 1, y)
+            };
 
             possibleMoves = possibleMoves.FindAll(move =>
                 move.Item1 >= 0 && move.Item1 < maze.Field.GetLength(0) &&
@@ -178,14 +182,12 @@ namespace RobotMaze.ViewModels
                 return (-1, -1);
             }
 
-            // Разделим возможные ходы на ходы с шипами и без шипов
             List<(int, int)> movesWithoutSpikes = possibleMoves.FindAll(move => maze.Field[move.Item1, move.Item2] != 2);
             List<(int, int)> movesWithSpikes = possibleMoves.FindAll(move => maze.Field[move.Item1, move.Item2] == 2);
 
             (int, int) bestMove = (-1, -1);
             double maxScore = double.MinValue;
 
-            // Сначала проверяем ходы без шипов
             foreach (var move in movesWithoutSpikes)
             {
                 double distance = FuzzyLogic.FuzzyDistanceToGoal(move.Item1, move.Item2, goal);
@@ -194,9 +196,10 @@ namespace RobotMaze.ViewModels
                 double direction = FuzzyLogic.FuzzyDirection(CalculateAngle(x, y, move.Item1, move.Item2));
                 double energyLevel = FuzzyLogic.FuzzyEnergyLevel(currentEnergy);
                 double dangerLevel = FuzzyLogic.FuzzyDangerLevel(move.Item1, move.Item2, dangerField);
+                double safetyLevel = FuzzyLogic.FuzzySafetyLevel(move.Item1, move.Item2, safetyField);
                 double oscillationPenalty = FuzzyLogic.AvoidOscillation(move.Item1, move.Item2, visited);
 
-                double score = FuzzyLogic.FuzzyDecision(distance, obstacleDensity, speed, direction, energyLevel, dangerLevel) * oscillationPenalty;
+                double score = FuzzyLogic.FuzzyDecision(distance, obstacleDensity, speed, direction, energyLevel, dangerLevel, safetyLevel, memory, visited) * oscillationPenalty;
 
                 if (score > maxScore)
                 {
@@ -205,7 +208,6 @@ namespace RobotMaze.ViewModels
                 }
             }
 
-            // Если нет ходов без шипов или энергия низкая, проверяем ходы с шипами
             if (bestMove == (-1, -1) || currentEnergy < 50)
             {
                 foreach (var move in movesWithSpikes)
@@ -216,9 +218,10 @@ namespace RobotMaze.ViewModels
                     double direction = FuzzyLogic.FuzzyDirection(CalculateAngle(x, y, move.Item1, move.Item2));
                     double energyLevel = FuzzyLogic.FuzzyEnergyLevel(currentEnergy);
                     double dangerLevel = FuzzyLogic.FuzzyDangerLevel(move.Item1, move.Item2, dangerField);
+                    double safetyLevel = FuzzyLogic.FuzzySafetyLevel(move.Item1, move.Item2, safetyField);
                     double oscillationPenalty = FuzzyLogic.AvoidOscillation(move.Item1, move.Item2, visited);
 
-                    double score = FuzzyLogic.FuzzyDecision(distance, obstacleDensity, speed, direction, energyLevel, dangerLevel) * oscillationPenalty;
+                    double score = FuzzyLogic.FuzzyDecision(distance, obstacleDensity, speed, direction, energyLevel, dangerLevel, safetyLevel, memory, visited) * oscillationPenalty;
 
                     if (score > maxScore)
                     {
@@ -230,8 +233,6 @@ namespace RobotMaze.ViewModels
 
             return bestMove;
         }
-
-
 
         private double CalculateAngle(int x1, int y1, int x2, int y2)
         {
@@ -260,12 +261,13 @@ namespace RobotMaze.ViewModels
                 }
                 else if (isCreatingSpikes)
                 {
-                    maze.Field[x, y] = maze.Field[x, y] == 2 ? 0 : 2; // Устанавливаем или снимаем шипы
-                    dangerField[x, y] = maze.Field[x, y] == 2 ? 1 : 0; // Обновляем уровень опасности
+                    maze.Field[x, y] = maze.Field[x, y] == 2 ? 0 : 2;
+                    dangerField[x, y] = maze.Field[x, y] == 2 ? 1 : 0;
+                    safetyField[x, y] = maze.Field[x, y] == 2 ? 0 : 1;
                 }
                 else if (isCreatingWalls)
                 {
-                    maze.Field[x, y] = maze.Field[x, y] == 1 ? 0 : 1; // Устанавливаем или снимаем стены
+                    maze.Field[x, y] = maze.Field[x, y] == 1 ? 0 : 1;
                 }
                 else
                 {
@@ -278,6 +280,20 @@ namespace RobotMaze.ViewModels
 
         public void StartButtonClick()
         {
+            // Проверка, чтобы стартовая позиция не была заблокирована клеткой
+            if (maze.Field[maze.Start.Item1, maze.Start.Item2] != 0)
+            {
+                MessageBox.Show("Start position is blocked by a cell!");
+                return;
+            }
+
+            // Проверка, чтобы финишная позиция не была заблокирована клеткой
+            if (maze.Field[maze.Goal.Item1, maze.Goal.Item2] != 0)
+            {
+                MessageBox.Show("Goal position is blocked by a cell!");
+                return;
+            }
+
             path = MoveRobot(maze.Start, maze.Goal);
             currentStep = 0;
             timer.Start();
@@ -287,12 +303,10 @@ namespace RobotMaze.ViewModels
         {
             if (currentStep < path.Count)
             {
-                // Добавляем точку в текущую клетку
                 AddPathPoint(path[currentStep]);
-
-                // Перемещаем робота в новую клетку
                 DrawRobot(path[currentStep]);
-                UpdateEnergy(path[currentStep]); // Обновляем энергию с учетом шипов
+                UpdateEnergy(path[currentStep]);
+                UpdateMetrics(path[currentStep]);
                 currentStep++;
             }
             else
@@ -328,7 +342,6 @@ namespace RobotMaze.ViewModels
                 Height = 50
             };
 
-            // Голова робота
             Ellipse head = new Ellipse
             {
                 Width = 20,
@@ -339,7 +352,6 @@ namespace RobotMaze.ViewModels
             Canvas.SetTop(head, 5);
             robot.Children.Add(head);
 
-            // Тело робота
             Rectangle body = new Rectangle
             {
                 Width = 30,
@@ -350,7 +362,6 @@ namespace RobotMaze.ViewModels
             Canvas.SetTop(body, 20);
             robot.Children.Add(body);
 
-            // Левая рука робота
             Rectangle leftArm = new Rectangle
             {
                 Width = 10,
@@ -361,7 +372,6 @@ namespace RobotMaze.ViewModels
             Canvas.SetTop(leftArm, 25);
             robot.Children.Add(leftArm);
 
-            // Правая рука робота
             Rectangle rightArm = new Rectangle
             {
                 Width = 10,
@@ -380,19 +390,22 @@ namespace RobotMaze.ViewModels
         public void ClearButtonClick()
         {
             maze.Field = new int[maze.M, maze.N];
-            dangerField = new int[maze.M, maze.N]; // Сбрасываем уровень опасности
+            dangerField = new int[maze.M, maze.N];
+            safetyField = new int[maze.M, maze.N];
             DrawMaze();
             DrawStartAndGoal();
-            timer.Stop(); // Останавливаем таймер при очистке
-            currentStep = 0; // Сбрасываем текущий шаг
-            path.Clear(); // Очищаем путь
+            timer.Stop();
+            currentStep = 0;
+            path.Clear();
             if (robot != null)
             {
-                mazeCanvas.Children.Remove(robot); // Удаляем робота с холста
+                mazeCanvas.Children.Remove(robot);
                 robot = null;
             }
-            currentEnergy = 100.0; // Сбрасываем энергию
+            currentEnergy = 100.0;
+            robotMetrics = new RobotMetrics();
             OnPropertyChanged(nameof(CurrentEnergy));
+            OnPropertyChanged(nameof(RobotMetrics));
         }
 
         public void SetStartButtonClick()
@@ -431,10 +444,11 @@ namespace RobotMaze.ViewModels
         {
             double distanceToGoal = FuzzyLogic.FuzzyDistanceToGoal(x, y, maze.Goal);
             double obstacleDensity = FuzzyLogic.FuzzyObstacleDensity(x, y, maze.Field);
-            double energyLevel = FuzzyLogic.FuzzyEnergyLevel(currentEnergy); // Новый параметр
-            double dangerLevel = FuzzyLogic.FuzzyDangerLevel(x, y, dangerField); // Новый параметр
+            double energyLevel = FuzzyLogic.FuzzyEnergyLevel(currentEnergy);
+            double dangerLevel = FuzzyLogic.FuzzyDangerLevel(x, y, dangerField);
+            double safetyLevel = FuzzyLogic.FuzzySafetyLevel(x, y, safetyField);
 
-            if (distanceToGoal > 0.5 && obstacleDensity < 0.5 && energyLevel > 0.5 && dangerLevel < 0.5)
+            if (distanceToGoal > 0.5 && obstacleDensity < 0.5 && energyLevel > 0.5 && dangerLevel < 0.5 && safetyLevel > 0.5)
             {
                 currentSpeed = Math.Min(currentSpeed + 0.1, 3.0);
             }
@@ -446,22 +460,27 @@ namespace RobotMaze.ViewModels
 
         private void UpdateEnergy((int, int) position)
         {
-            if (maze.Field[position.Item1, position.Item2] == 2)
-            {
-                currentEnergy -= 50; // Уменьшаем энергию на 50, если робот на шипе
-            }
-            else
-            {
-                currentEnergy -= 1; // Уменьшаем энергию на 1
-            }
+            int energyConsumed = maze.Field[position.Item1, position.Item2] == 2 ? 50 : 1;
+            currentEnergy -= energyConsumed;
 
             if (currentEnergy <= 0)
             {
-                timer.Stop(); // Останавливаем таймер, если энергия закончилась
+                timer.Stop();
                 MessageBox.Show("Robot is out of energy!");
             }
 
             OnPropertyChanged(nameof(CurrentEnergy));
+        }
+
+        private void UpdateMetrics((int, int) position)
+        {
+            int steps = 1;
+            int energyConsumed = maze.Field[position.Item1, position.Item2] == 2 ? 50 : 1;
+            TimeSpan timeElapsed = TimeSpan.FromMilliseconds(500);
+            int distanceTraveled = 1;
+
+            robotMetrics.UpdateMetrics(steps, energyConsumed, timeElapsed, distanceTraveled);
+            OnPropertyChanged(nameof(RobotMetrics));
         }
 
         public double CurrentEnergy
@@ -477,9 +496,67 @@ namespace RobotMaze.ViewModels
             }
         }
 
+        public RobotMetrics RobotMetrics
+        {
+            get { return robotMetrics; }
+            set
+            {
+                if (robotMetrics != value)
+                {
+                    robotMetrics = value;
+                    OnPropertyChanged(nameof(RobotMetrics));
+                }
+            }
+        }
+
         protected void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public void GenerateMaze(int width, int height)
+        {
+            maze = new Maze(width, height);
+            dangerField = new int[width, height];
+            safetyField = new int[width, height];
+
+            Random random = new Random();
+
+            // Инициализируем все клетки как стены
+            for (int i = 0; i < width; i++)
+            {
+                for (int j = 0; j < height; j++)
+                {
+                    maze.Field[i, j] = 1;
+                }
+            }
+
+            // Генерация основной структуры лабиринта с помощью алгоритма Прима
+            PrimsAlgorithmGenerator.GeneratePrimsAlgorithm(maze.Field, random);
+
+            // Добавление случайных препятствий с помощью шума Перлина
+            PerlinNoiseGenerator.GeneratePerlinNoise(maze.Field, random);
+
+            DrawMaze();
+            DrawStartAndGoal();
+        }
+
+        public void ZoomIn()
+        {
+            scale += 0.1;
+            ApplyScaleTransform();
+        }
+
+        public void ZoomOut()
+        {
+            scale = Math.Max(0.1, scale - 0.1);
+            ApplyScaleTransform();
+        }
+
+        private void ApplyScaleTransform()
+        {
+            ScaleTransform scaleTransform = new ScaleTransform(scale, scale);
+            mazeCanvas.RenderTransform = scaleTransform;
         }
     }
 }

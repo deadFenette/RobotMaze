@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace RobotMaze.RobotLogic
 {
@@ -7,8 +8,10 @@ namespace RobotMaze.RobotLogic
     {
         private const int FieldCheckRadius = 1;
         private const int TotalCheckedCells = 9;
-        private const double MaxDistanceWeight = 0.8;
-        private const double OtherParametersWeight = 0.05;
+        private const double MaxDistanceWeight = 1.0; // Увеличен вес для расстояния до цели
+        private const double OtherParametersWeight = 0.1; // Уменьшен вес для других параметров
+        private const int MemorySize = 10; // Увеличен размер памяти для избегания колебаний
+        private const double ConfidenceThreshold = 0.7; // Порог уверенности в принятии решений
 
         // Вычисляет нечёткое расстояние до цели
         public static double FuzzyDistanceToGoal(int x, int y, (int, int) goal)
@@ -71,19 +74,45 @@ namespace RobotMaze.RobotLogic
             return count / (double)TotalCheckedCells;
         }
 
-        // Вычисляет вес решения на основе нечётких параметров
-        public static double CalculateDecisionWeight(double distanceToGoal, double obstacleDensity, double currentSpeed, double direction, double energyLevel, double dangerLevel)
+        // Вычисляет нечёткий уровень безопасности
+        public static double FuzzySafetyLevel(int x, int y, int[,] safetyField)
         {
-            return MaxDistanceWeight * distanceToGoal +
-                   OtherParametersWeight * (obstacleDensity + currentSpeed + direction + energyLevel + dangerLevel);
+            int count = CountObstaclesAround(x, y, safetyField);
+            return 1 - (count / (double)TotalCheckedCells);
+        }
+
+        // Вычисляет вес решения на основе нечётких параметров
+        public static double CalculateDecisionWeight(double distanceToGoal, double obstacleDensity, double currentSpeed, double direction, double energyLevel, double dangerLevel, double safetyLevel, double confidence)
+        {
+            double totalWeight = MaxDistanceWeight * distanceToGoal +
+                                 OtherParametersWeight * (obstacleDensity + currentSpeed + direction + energyLevel + dangerLevel + safetyLevel);
+            return totalWeight * confidence;
         }
 
         // Принимает решение на основе нечётких параметров
-        public static double FuzzyDecision(double distanceToGoal, double obstacleDensity, double currentSpeed, double direction, double energyLevel, double dangerLevel)
+        public static double FuzzyDecision(double distanceToGoal, double obstacleDensity, double currentSpeed, double direction, double energyLevel, double dangerLevel, double safetyLevel, Queue<(int, int)> memory, HashSet<(int, int)> visited)
         {
-            double forwardDecision = CalculateDecisionWeight(distanceToGoal, obstacleDensity, currentSpeed, direction, energyLevel, dangerLevel);
-            double leftDecision = CalculateDecisionWeight(distanceToGoal - 1, obstacleDensity + 0.5, currentSpeed, NormalizeAngle(direction + 90), energyLevel, dangerLevel);
-            double rightDecision = CalculateDecisionWeight(distanceToGoal - 1, obstacleDensity + 0.5, currentSpeed, NormalizeAngle(direction - 90), energyLevel, dangerLevel);
+            double confidence = 1.0; // Начальное значение уверенности
+            double forwardDecision = CalculateDecisionWeight(distanceToGoal, obstacleDensity, currentSpeed, direction, energyLevel, dangerLevel, safetyLevel, confidence);
+            double leftDecision = CalculateDecisionWeight(distanceToGoal - 1, obstacleDensity + 0.5, currentSpeed, NormalizeAngle(direction + 90), energyLevel, dangerLevel, safetyLevel, confidence);
+            double rightDecision = CalculateDecisionWeight(distanceToGoal - 1, obstacleDensity + 0.5, currentSpeed, NormalizeAngle(direction - 90), energyLevel, dangerLevel, safetyLevel, confidence);
+
+            // Избегание колебаний
+            if (memory.Count >= MemorySize && memory.Any(m => m.Item1 == (int)direction && m.Item2 == (int)direction))
+            {
+                forwardDecision *= 0.5;
+            }
+
+            // Избегание повторного посещения клеток
+            forwardDecision *= AvoidOscillation((int)direction, (int)direction, visited);
+            leftDecision *= AvoidOscillation((int)NormalizeAngle(direction + 90), (int)NormalizeAngle(direction + 90), visited);
+            rightDecision *= AvoidOscillation((int)NormalizeAngle(direction - 90), (int)NormalizeAngle(direction - 90), visited);
+
+            // Проверка уверенности в решении
+            if (forwardDecision < ConfidenceThreshold && leftDecision < ConfidenceThreshold && rightDecision < ConfidenceThreshold)
+            {
+                confidence = 0.5; // Уменьшение уверенности
+            }
 
             return Math.Max(forwardDecision, Math.Max(leftDecision, rightDecision));
         }
