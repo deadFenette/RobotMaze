@@ -18,7 +18,7 @@ namespace RobotMaze.MazeGeneration
             field[startX, startY] = 0; // Начальная клетка - не стена
 
             // Инициализируем фронтир (границу)
-            List<(int, int)> frontier = new List<(int, int)> { (startX, startY) };
+            List<(int, int)> frontier = [(startX, startY)];
 
             while (frontier.Count > 0)
             {
