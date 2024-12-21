@@ -11,7 +11,8 @@ namespace RobotMaze.Converters
         {
             if (value is RobotMetrics metrics)
             {
-                return $"Steps: {metrics.StepsTaken}, Energy: {metrics.EnergyConsumed}, Time: {metrics.TimeElapsed}, Distance: {metrics.DistanceTraveled}";
+                double summaryMetric = metrics.CalculateSummaryMetric();
+                return $"Steps: {metrics.StepsTaken}, Energy: {metrics.EnergyConsumed}, Time: {metrics.TimeElapsed}, Distance: {metrics.DistanceTraveled}, Spike Collisions: {metrics.SpikeCollisions}, Direction Changes: {metrics.DirectionChanges}, Avg Time Between Collisions: {metrics.AverageTimeBetweenSpikeCollisions}, Summary Metric: {summaryMetric}";
             }
             return string.Empty;
         }

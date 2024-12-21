@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace RobotMaze.RobotLogic
 {
@@ -18,6 +18,16 @@ namespace RobotMaze.RobotLogic
         private readonly Random random;
         private bool _useGoalPosition = true; // Флаг для использования позиции цели
         private List<string> changeLog = new List<string>(); // Журнал изменений
+
+        public double GetPheromone(int i, int j)
+        {
+            return pheromone[i, j];
+        }
+
+        public bool GetUseGoalPosition()
+        {
+            return _useGoalPosition;
+        }
 
         public ACOLogic(int[,] maze, double evaporationRate, double initialPheromone, int maxIterations, int numAnts)
         {
@@ -52,16 +62,16 @@ namespace RobotMaze.RobotLogic
 
         public List<(int, int)> FindPath((int, int) start, (int, int) goal)
         {
-            Console.WriteLine("ACO algorithm started.");
+            Debug.WriteLine("ACO algorithm started.");
             List<(int, int)> bestPath = null;
             double bestPathLength = double.MaxValue;
 
-            Parallel.For(0, maxIterations, iteration =>
+            for (int iteration = 0; iteration < maxIterations; iteration++)
             {
                 List<(int, int)>[] antPaths = new List<(int, int)>[numAnts];
                 double[] antPathLengths = new double[numAnts];
 
-                Parallel.For(0, numAnts, ant =>
+                for (int ant = 0; ant < numAnts; ant++)
                 {
                     antPaths[ant] = new List<(int, int)>();
                     antPathLengths[ant] = 0;
@@ -78,29 +88,29 @@ namespace RobotMaze.RobotLogic
                         steps++;
                     }
 
-                    antPaths[ant].Add(goal);
-                });
+                    if (currentPosition == goal)
+                    {
+                        antPaths[ant].Add(goal);
+                    }
+                }
 
                 UpdatePheromone(antPaths, antPathLengths);
 
                 for (int ant = 0; ant < numAnts; ant++)
                 {
-                    lock (this)
+                    if (antPathLengths[ant] < bestPathLength)
                     {
-                        if (antPathLengths[ant] < bestPathLength)
-                        {
-                            bestPathLength = antPathLengths[ant];
-                            bestPath = antPaths[ant];
-                        }
+                        bestPathLength = antPathLengths[ant];
+                        bestPath = antPaths[ant];
                     }
                 }
-            });
+            }
 
-            Console.WriteLine("ACO algorithm finished.");
+            Debug.WriteLine("ACO algorithm finished.");
             return bestPath;
         }
 
-        private (int, int) ChooseNextMove((int, int) current, (int, int) goal)
+        internal (int, int) ChooseNextMove((int, int) current, (int, int) goal)
         {
             List<(int, int)> possibleMoves = new List<(int, int)>
             {
@@ -151,12 +161,12 @@ namespace RobotMaze.RobotLogic
             return current;
         }
 
-        private double CalculateDistance((int, int) a, (int, int) b)
+        internal double CalculateDistance((int, int) a, (int, int) b)
         {
             return Math.Sqrt(Math.Pow(a.Item1 - b.Item1, 2) + Math.Pow(a.Item2 - b.Item2, 2));
         }
 
-        private void UpdatePheromone(List<(int, int)>[] antPaths, double[] antPathLengths)
+        internal void UpdatePheromone(List<(int, int)>[] antPaths, double[] antPathLengths)
         {
             for (int i = 0; i < m; i++)
             {
@@ -166,18 +176,15 @@ namespace RobotMaze.RobotLogic
                 }
             }
 
-            Parallel.For(0, numAnts, ant =>
+            for (int ant = 0; ant < numAnts; ant++)
             {
                 double contribution = 1.0 / antPathLengths[ant];
                 foreach (var position in antPaths[ant])
                 {
-                    lock (this)
-                    {
-                        pheromone[position.Item1, position.Item2] += contribution;
-                        changeLog.Add($"Ant {ant} updated pheromone at ({position.Item1}, {position.Item2}) to {pheromone[position.Item1, position.Item2]}");
-                    }
+                    pheromone[position.Item1, position.Item2] += contribution;
+                    changeLog.Add($"Ant {ant} updated pheromone at ({position.Item1}, {position.Item2}) to {pheromone[position.Item1, position.Item2]}");
                 }
-            });
+            }
         }
 
         public List<string> GetChangeLog()

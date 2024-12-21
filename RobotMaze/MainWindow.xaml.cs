@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using Microsoft.Win32;
 using RobotMaze.ViewModels;
 using RobotMaze.Views;
 
@@ -35,8 +36,8 @@ namespace RobotMaze
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
             viewModel.useGoalPositionAStar = true;
-            viewModel.useGoalPositionFuzzy = true;
-            viewModel.useGoalPositionACO = true;
+            viewModel.useGoalPositionFuzzy = false;
+            viewModel.useGoalPositionACO = false;
 
             viewModel.StartButtonClick();
         }
@@ -101,5 +102,38 @@ namespace RobotMaze
         {
             viewModel.ZoomOut();
         }
+
+        private void SaveMazeButton_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                DefaultExt = "json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                string filePath = saveFileDialog.FileName;
+                viewModel.SaveMaze(filePath);
+            }
+        }
+
+        private void LoadMazeButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                DefaultExt = "json"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string filePath = openFileDialog.FileName;
+                viewModel.LoadMaze(filePath);
+            }
+        }
+
+
+
     }
 }

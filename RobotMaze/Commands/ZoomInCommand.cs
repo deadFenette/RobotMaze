@@ -3,14 +3,9 @@ using System.Windows.Input;
 
 namespace RobotMaze.Commands
 {
-    public class ZoomInCommand : ICommand
+    public class ZoomInCommand(MazeViewModel viewModel) : ICommand
     {
-        private readonly MazeViewModel viewModel;
-
-        public ZoomInCommand(MazeViewModel viewModel)
-        {
-            this.viewModel = viewModel;
-        }
+        private readonly MazeViewModel viewModel = viewModel;
 
         public bool CanExecute(object parameter)
         {
