@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using Microsoft.Win32;
 using RobotMaze.ViewModels;
 using RobotMaze.Views;
 
@@ -34,6 +35,10 @@ namespace RobotMaze
 
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
+            viewModel.useGoalPositionAStar = true;
+            viewModel.useGoalPositionFuzzy = false;
+            viewModel.useGoalPositionACO = false;
+
             viewModel.StartButtonClick();
         }
 
@@ -64,13 +69,29 @@ namespace RobotMaze
 
         private void GenerateMazeButton_Click(object sender, RoutedEventArgs e)
         {
-            int width = int.Parse(MazeWidthTextBox.Text);
-            int height = int.Parse(MazeHeightTextBox.Text);
-            Console.WriteLine($"Button clicked with width: {width}, height: {height}");
-            viewModel.GenerateMaze(width, height);
+            try
+            {
+                int width = int.Parse(MazeWidthTextBox.Text);
+                int height = int.Parse(MazeHeightTextBox.Text);
+
+                if (width <= 0 || height <= 0)
+                {
+                    MessageBox.Show("Width and height must be greater than zero. Please enter valid values.");
+                    return;
+                }
+
+                Console.WriteLine($"Button clicked with width: {width}, height: {height}");
+                viewModel.GenerateMaze(width, height);
+            }
+            catch (FormatException)
+            {
+                MessageBox.Show("Invalid input. Please enter valid numeric values for width and height.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred: {ex.Message}");
+            }
         }
-
-
 
         private void ZoomInButton_Click(object sender, RoutedEventArgs e)
         {
@@ -81,5 +102,38 @@ namespace RobotMaze
         {
             viewModel.ZoomOut();
         }
+
+        private void SaveMazeButton_Click(object sender, RoutedEventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                DefaultExt = "json"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                string filePath = saveFileDialog.FileName;
+                viewModel.SaveMaze(filePath);
+            }
+        }
+
+        private void LoadMazeButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json|All Files (*.*)|*.*",
+                DefaultExt = "json"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string filePath = openFileDialog.FileName;
+                viewModel.LoadMaze(filePath);
+            }
+        }
+
+
+
     }
 }

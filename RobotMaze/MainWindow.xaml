@@ -84,25 +84,25 @@
         <Style x:Key="EnergyTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Background" Value="#FF9966"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Margin" Value="10"/>
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="HorizontalAlignment" Value="Right"/>
-            <Setter Property="VerticalAlignment" Value="Top"/>
-            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
         </Style>
 
         <Style x:Key="MetricsTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Background" Value="#FF9966"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Margin" Value="10"/>
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="HorizontalAlignment" Value="Right"/>
-            <Setter Property="VerticalAlignment" Value="Top"/>
-            <Setter Property="TextAlignment" Value="Right"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
         </Style>
 
         <converters:RobotMetricsConverter x:Key="RobotMetricsConverter"/>
@@ -118,31 +118,55 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <StackPanel Orientation="Vertical" Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" Margin="10">
+            <TextBlock x:Name="EnergyTextBlock1" Text="{Binding CurrentEnergy1, StringFormat='Energy 1: {0}'}" Style="{StaticResource EnergyTextBlockStyle}"/>
+            <TextBlock x:Name="EnergyTextBlock2" Text="{Binding CurrentEnergy2, StringFormat='Energy 2: {0}'}" Style="{StaticResource EnergyTextBlockStyle}"/>
+            <TextBlock x:Name="EnergyTextBlock3" Text="{Binding CurrentEnergy3, StringFormat='Energy 3: {0}'}" Style="{StaticResource EnergyTextBlockStyle}"/>
+            <TextBlock x:Name="MetricsTextBlock1" Text="{Binding RobotMetrics1, Converter={StaticResource RobotMetricsConverter}}" Style="{StaticResource MetricsTextBlockStyle}"/>
+            <TextBlock x:Name="MetricsTextBlock2" Text="{Binding RobotMetrics2, Converter={StaticResource RobotMetricsConverter}}" Style="{StaticResource MetricsTextBlockStyle}"/>
+            <TextBlock x:Name="MetricsTextBlock3" Text="{Binding RobotMetrics3, Converter={StaticResource RobotMetricsConverter}}" Style="{StaticResource MetricsTextBlockStyle}"/>
+            
+        </StackPanel>
+
         <ScrollViewer Grid.Column="0" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <views:MazeCanvas x:Name="MazeCanvas" MouseLeftButtonDown="MazeCanvas_MouseLeftButtonDown" MouseWheel="MazeCanvas_MouseWheel"/>
         </ScrollViewer>
 
         <StackPanel Orientation="Vertical" Grid.Column="1" Grid.RowSpan="2" Margin="10">
-            <Button Content="Start" Click="StartButton_Click" Margin="0,0,0,10" Style="{StaticResource PeachButtonStyle}"/>
-            <Button Content="Clear" Click="ClearButton_Click" Margin="0,0,0,10" Style="{StaticResource PeachButtonStyle}"/>
-            <Button Content="Set Start" Click="SetStartButton_Click" Margin="0,0,0,10" Style="{StaticResource PeachButtonStyle}"/>
-            <Button Content="Set Goal" Click="SetGoalButton_Click" Margin="0,0,0,10" Style="{StaticResource PeachButtonStyle}"/>
-            <Button Content="Create Spikes" Click="CreateSpikesButton_Click" Margin="0,0,0,10" Style="{StaticResource PeachButtonStyle}"/>
-            <Button Content="Create Walls" Click="CreateWallsButton_Click" Margin="0,0,0,10" Style="{StaticResource PeachButtonStyle}"/>
-            <Button Content="Generate Maze" Click="GenerateMazeButton_Click" Margin="0,0,0,10" Style="{StaticResource PeachButtonStyle}"/>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <TextBlock Text="Width:" Margin="0,0,5,0"/>
-                <TextBox x:Name="MazeWidthTextBox" Width="50" Margin="0,0,5,0"/>
-                <TextBlock Text="Height:" Margin="0,0,5,0"/>
-                <TextBox x:Name="MazeHeightTextBox" Width="50"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <Button Content="+" Click="ZoomInButton_Click" Margin="0,0,5,0" Style="{StaticResource PeachButtonStyle}"/>
-                <Button Content="-" Click="ZoomOutButton_Click" Margin="0,0,5,0" Style="{StaticResource PeachButtonStyle}"/>
-            </StackPanel>
-        </StackPanel>
+            <GroupBox Header="Maze Controls" Margin="0,0,0,10">
+                <WrapPanel>
+                    <Button Content="Start" Click="StartButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="Clear" Click="ClearButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="Set Start" Click="SetStartButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="Set Goal" Click="SetGoalButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="Create Spikes" Click="CreateSpikesButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="Create Walls" Click="CreateWallsButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="Generate Maze" Click="GenerateMazeButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                </WrapPanel>
+            </GroupBox>
 
-        <TextBlock x:Name="EnergyTextBlock" Text="{Binding CurrentEnergy, StringFormat='Energy: {0}'}" Style="{StaticResource EnergyTextBlockStyle}" Grid.Column="0" HorizontalAlignment="Left" Margin="555,10,0,0"/>
-        <TextBlock x:Name="MetricsTextBlock" Text="{Binding RobotMetrics, Converter={StaticResource RobotMetricsConverter}}" Style="{StaticResource MetricsTextBlockStyle}" Grid.Column="0" Grid.Row="0" Margin="0,10,0,0"/>
+            <GroupBox Header="Maze Dimensions" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Width:" Margin="0,0,5,0"/>
+                    <TextBox x:Name="MazeWidthTextBox" Width="50" Margin="0,0,5,0"/>
+                    <TextBlock Text="Height:" Margin="0,0,5,0"/>
+                    <TextBox x:Name="MazeHeightTextBox" Width="50"/>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Zoom Controls" Margin="0,0,0,10">
+                <WrapPanel>
+                    <Button Content="+" Click="ZoomInButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="-" Click="ZoomOutButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                </WrapPanel>
+            </GroupBox>
+
+            <GroupBox Header="Maze Operations" Margin="0,0,0,10">
+                <WrapPanel>
+                    <Button Content="Save Maze" Click="SaveMazeButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                    <Button Content="Load Maze" Click="LoadMazeButton_Click" Style="{StaticResource PeachButtonStyle}"/>
+                </WrapPanel>
+            </GroupBox>
+        </StackPanel>
     </Grid>
 </Window>

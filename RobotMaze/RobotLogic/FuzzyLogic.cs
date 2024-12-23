@@ -6,16 +6,52 @@ namespace RobotMaze.RobotLogic
 {
     public static class FuzzyLogic
     {
+        // Радиус проверки поля вокруг текущей позиции
         private const int FieldCheckRadius = 1;
+
+        // Общее количество проверенных клеток
         private const int TotalCheckedCells = 9;
-        private const double MaxDistanceWeight = 1.0; // Увеличен вес для расстояния до цели
-        private const double OtherParametersWeight = 0.1; // Уменьшен вес для других параметров
-        private const int MemorySize = 10; // Увеличен размер памяти для избегания колебаний
-        private const double ConfidenceThreshold = 0.7; // Порог уверенности в принятии решений
+
+        // Вес для расстояния до цели
+        private const double MaxDistanceWeight = 0.8;
+
+        // Вес для плотности препятствий
+        private const double ObstacleDensityWeight = 0.7;
+
+        // Вес для текущей скорости
+        private const double CurrentSpeedWeight = 0.2;
+
+        // Вес для направления
+        private const double DirectionWeight = 0.4;
+
+        // Вес для уровня энергии
+        private const double EnergyLevelWeight = 0.2;
+
+        // Вес для уровня опасности
+        private const double DangerLevelWeight = 0.4;
+
+        // Вес для уровня безопасности
+        private const double SafetyLevelWeight = 0.1;
+
+        // Размер памяти для избегания колебаний
+        private const int MemorySize = 10;
+
+        // Порог уверенности в принятии решений
+        private const double ConfidenceThreshold = 0.7;
+
+        // Флаг для использования позиции цели
+        private static bool _useGoalPosition = true;
+
+        // Устанавливает использование позиции цели
+        public static void SetUseGoalPosition(bool useGoalPosition)
+        {
+            _useGoalPosition = useGoalPosition;
+        }
 
         // Вычисляет нечёткое расстояние до цели
         public static double FuzzyDistanceToGoal(int x, int y, (int, int) goal)
         {
+            if (!_useGoalPosition) return 0;
             double distance = Math.Sqrt(Math.Pow(x - goal.Item1, 2) + Math.Pow(y - goal.Item2, 2));
             return 1 / (1 + distance);
         }
@@ -85,7 +121,12 @@ namespace RobotMaze.RobotLogic
         public static double CalculateDecisionWeight(double distanceToGoal, double obstacleDensity, double currentSpeed, double direction, double energyLevel, double dangerLevel, double safetyLevel, double confidence)
         {
             double totalWeight = MaxDistanceWeight * distanceToGoal +
-                                 OtherParametersWeight * (obstacleDensity + currentSpeed + direction + energyLevel + dangerLevel + safetyLevel);
+                                 ObstacleDensityWeight * obstacleDensity +
+                                 CurrentSpeedWeight * currentSpeed +
+                                 DirectionWeight * direction +
+                                 EnergyLevelWeight * energyLevel +
+                                 DangerLevelWeight * dangerLevel +
+                                 SafetyLevelWeight * safetyLevel;
             return totalWeight * confidence;
         }
 
@@ -120,7 +161,7 @@ namespace RobotMaze.RobotLogic
         // Избегает колебаний, уменьшая вероятность возврата на уже посещённую клетку
         public static double AvoidOscillation(int x, int y, HashSet<(int, int)> visited)
         {
-            return visited.Contains((x, y)) ? 0.0 : 1.0;
+            return visited.Contains((x, y)) ? 0.2 : 1.0;
         }
 
         // Нормализует угол в диапазоне [0, 360)
